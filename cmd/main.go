@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-echarts/go-echarts/charts"
@@ -26,21 +27,24 @@ var (
 	}
 
 	//query frequency
-	frequency = (60 * time.Second)
+	frequency = (60 * 5 * time.Second)
 
 	//save csv path
 	dustFilePath = "./data/2-2122-dust.csv"
 )
 
 func main() {
-	_, err := upload.ConnectDatabase()
+	sensorConn, err := dust_sensor.Connect(config)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sensorConn, err := dust_sensor.Connect(config)
-
+	dbcon, err := upload.New()
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := dbcon.DBInit(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -55,29 +59,35 @@ func main() {
 		break
 	}
 
-	go func() {
-		http.HandleFunc("/dust", chart)
-		http.ListenAndServe(":8081", nil)
-	}()
+	go func(dbcon *upload.UploadController) {
+		for {
+			fmt.Println("5")
+			result, err := sensorConn.QueryDust()
+			if err != nil {
+				fmt.Printf("Query fail: %s\nRequery\n", err)
+				continue
+			}
 
-	for {
-		fmt.Println("5")
-		result, err := sensorConn.QueryDust()
-		if err != nil {
-			fmt.Printf("Query fail: %s\nRequery\n", err)
-			continue
+			fmt.Println("6")
+			record := [][]string{{time.Now().Format("2006-01-02 15:04"), strconv.Itoa(result)}}
+
+			err = save.SaveToCsv(record, dustFilePath, false)
+			if err != nil {
+				log.Fatalf("Save to CSV fail: %s", err)
+			}
+
+			if err := dbcon.Upload(result); err != nil {
+				log.Fatalf("Upload to database fail: %s", err)
+			}
+
+			fmt.Println("7")
+			fmt.Printf("😀 Read and save succeed:%s\n", record)
+			time.Sleep(frequency)
 		}
+	}(dbcon)
 
-		fmt.Println("6")
-		err = save.SaveToCsv(result, dustFilePath, false)
-		if err != nil {
-			log.Fatalf("Save to CSV fail: %s", err)
-		}
-
-		fmt.Println("7")
-		fmt.Println(time.Now().Format("2006-01-02 15:04"), "😀 Read and save succeed:", result)
-		time.Sleep(frequency)
-	}
+	http.HandleFunc("/dust", chart)
+	http.ListenAndServe(":8081", nil)
 }
 
 func chart(w http.ResponseWriter, _ *http.Request) {

@@ -4,14 +4,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"strconv"
-	"time"
 )
 
-func SaveToCsv(result int, path string, tableHeader bool) (err error) {
+func SaveToCsv(record [][]string, path string, tableHeader bool) (err error) {
 	fmt.Println("3")
-
-	record := [][]string{{time.Now().Format("2006-01-02 15:04"), strconv.Itoa(result)}}
 
 	_, err = os.Lstat(path)
 	if err != nil && os.IsNotExist(err) {

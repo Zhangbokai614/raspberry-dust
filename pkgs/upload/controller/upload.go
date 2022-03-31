@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"dust/pkgs/upload/mysql"
+
 	"gopkg.in/yaml.v2"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -20,7 +22,11 @@ type DB struct {
 	Passwd string `yaml:"passwd"`
 }
 
-func ConnectDatabase() (*sql.DB, error) {
+type UploadController struct {
+	db *sql.DB
+}
+
+func New() (*UploadController, error) {
 	file, err := ioutil.ReadFile("./database.yaml")
 	if err != nil {
 		return nil, err
@@ -33,10 +39,39 @@ func ConnectDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
-	dbConn, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/project?parseTime=true", conf.DB.Name, conf.DB.Passwd, conf.DB.Host))
+	dbConn, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/?parseTime=true", conf.DB.Name, conf.DB.Passwd, conf.DB.Host))
 	if err != nil {
 		return nil, err
 	}
 
-	return dbConn, nil
+	return &UploadController{
+		db: dbConn,
+	}, nil
+}
+
+func (c *UploadController) DBInit() error {
+	println("a")
+
+	err := mysql.CreateDatabase(c.db)
+	if err != nil {
+		return err
+	}
+	println("b")
+
+	err = mysql.CreateTable(c.db)
+	if err != nil {
+		return err
+	}
+	println("c")
+
+	return nil
+}
+
+func (c *UploadController) Upload(dust int) error {
+	err := mysql.InsertTable(c.db, dust)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
