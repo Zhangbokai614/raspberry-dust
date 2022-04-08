@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 )
 
 const (
@@ -27,11 +28,11 @@ var (
 		fmt.Sprintf(`CREATE DATABASE IF NOT EXISTS %s;`, DBName),
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
 			id		    	BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-			query_date  	DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			query_time  	DATETIME NOT NULL,
 			dust			SMALLINT NOT NULL,
 			PRIMARY KEY (id)
-		)  ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;`, DBName, TableName),
-		fmt.Sprintf(`INSERT INTO %s.%s (dust) VALUES (?)`, DBName, TableName),
+		)  ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;`, DBName, TableName),
+		fmt.Sprintf(`INSERT INTO %s.%s (query_time, dust) VALUES (?, ?)`, DBName, TableName),
 		fmt.Sprintf(`SELECT query_time, dust FROM %s.%s WHERE query_time BETWEEN ? AND ?`, DBName, TableName),
 	}
 )
@@ -54,8 +55,8 @@ func CreateTable(db *sql.DB) error {
 	return nil
 }
 
-func InsertTable(db *sql.DB, dust int) error {
-	result, err := db.Exec(SQLString[mysqlInsertUpload], dust)
+func InsertTable(db *sql.DB, queryTime time.Time, dust int) error {
+	result, err := db.Exec(SQLString[mysqlInsertUpload], queryTime, dust)
 	if err != nil {
 		return err
 	}
@@ -67,8 +68,34 @@ func InsertTable(db *sql.DB, dust int) error {
 	return nil
 }
 
-func QueryTable(db *sql.DB) error {
-	//...
+type QueryDust struct {
+	QueryTime time.Time
+	Dust      int
+}
 
-	return nil
+func QueryTable(db *sql.DB, startTime, endTime time.Time) ([]*QueryDust, error) {
+	rows, err := db.Query(SQLString[mysqlQueryUpload], startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*QueryDust
+
+	for rows.Next() {
+		var (
+			query_time time.Time
+			dust       int
+		)
+
+		if err := rows.Scan(&query_time, &dust); err != nil {
+			return nil, err
+		}
+
+		result = append(result, &QueryDust{
+			QueryTime: query_time,
+			Dust:      dust,
+		})
+	}
+
+	return result, nil
 }

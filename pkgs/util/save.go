@@ -2,13 +2,10 @@ package save
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 )
 
 func SaveToCsv(record [][]string, path string, tableHeader bool) (err error) {
-	fmt.Println("3")
-
 	_, err = os.Lstat(path)
 	if err != nil && os.IsNotExist(err) {
 		file, err := os.Create(path)

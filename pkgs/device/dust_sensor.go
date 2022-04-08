@@ -48,7 +48,6 @@ func Connect(c *Config) (*Sensor, error) {
 }
 
 func (s *Sensor) SetDeviceMod() (err error) {
-	fmt.Println("1")
 	n, err := s.Port.Write(setPassiveMode)
 	if err != nil {
 		err = fmt.Errorf("port.write: %s", err)
@@ -73,7 +72,6 @@ func (s *Sensor) SetDeviceMod() (err error) {
 }
 
 func (s *Sensor) QueryDust() (result int, err error) {
-	fmt.Println("2")
 	n, err := s.Port.Write(passiveModeQuery)
 	if err != nil {
 		err = fmt.Errorf("port.Write: %s", err)
@@ -82,23 +80,25 @@ func (s *Sensor) QueryDust() (result int, err error) {
 
 	var results []byte
 
-	if n == len(passiveModeQuery) {
-		for len(results) < 32 {
-			buf := make([]byte, 32-len(results))
-			n, err = s.Port.Read(buf)
-			if err != nil {
-				err = fmt.Errorf("port.Read: %s", err)
-				return 0, err
-			}
+	if n != len(passiveModeQuery) {
+		return 0, errors.New("😢 Query write file")
+	}
 
-			results = append(results, buf[:n]...)
-			if len(results) >= len(passiveModeQueryCheck) {
-				tempSlice := results[:len(passiveModeQueryCheck)]
-				if !bytes.Equal(tempSlice, passiveModeQueryCheck) {
-					results = nil
-					err := errors.New("😢 Read check fail , reread")
-					return 0, err
-				}
+	for len(results) < 32 {
+		buf := make([]byte, 32-len(results))
+		n, err = s.Port.Read(buf)
+		if err != nil {
+			err = fmt.Errorf("port.Read: %s", err)
+			return 0, err
+		}
+
+		results = append(results, buf[:n]...)
+		if len(results) >= len(passiveModeQueryCheck) {
+			tempSlice := results[:len(passiveModeQueryCheck)]
+			if !bytes.Equal(tempSlice, passiveModeQueryCheck) {
+				results = nil
+				err := errors.New("😢 Read check fail")
+				return 0, err
 			}
 		}
 	}
@@ -115,6 +115,7 @@ func (s *Sensor) QueryDust() (result int, err error) {
 		return result, nil
 	}
 
-	err = errors.New("😢 Read check fail, reread")
+	err = errors.New("😢 Read check lrc  fail")
+
 	return 0, err
 }
