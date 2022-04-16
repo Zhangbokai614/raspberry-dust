@@ -7,9 +7,13 @@ import (
 	"strconv"
 	"time"
 
+	"dust/pkgs/chart"
 	dust_sensor "dust/pkgs/device"
 	upload "dust/pkgs/upload/controller"
 	save "dust/pkgs/util"
+
+	"github.com/dovics/pangolin"
+	"github.com/dovics/pangolin/lsmt"
 )
 
 var (
@@ -30,10 +34,14 @@ var (
 )
 
 func main() {
-	// db, err := pangolin.OpenDB(pangolin.DefaultOption(uuid.NewString()))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	option := pangolin.DefaultOption("dc7d60be-e9a9-45bb-9f0a-a5c3dcb42e52")
+	lsmt.DefaultOption.MemtableSize = 1024
+	option.EngineOption = lsmt.DefaultOption
+
+	db, err := pangolin.OpenDB(option)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	sensorConn, err := dust_sensor.Connect(config)
 	if err != nil {
@@ -51,6 +59,7 @@ func main() {
 
 	go func() {
 		http.HandleFunc("/queryDust", dbcon.Query)
+		http.HandleFunc("/chart", chart.BarChart)
 		http.ListenAndServe(":8081", nil)
 	}()
 
@@ -96,9 +105,9 @@ func main() {
 			log.Fatalf("Upload to database fail: %s", err)
 		}
 
-		// if err := db.Insert(time.Now().UnixMicro(), result); err != nil {
-		// 	log.Fatal(err)
-		// }
+		if err := db.Insert(time.Now().Unix(), result); err != nil {
+			log.Fatal(err)
+		}
 
 		fmt.Printf("😀 Read and save succeed:%s\n", record)
 		time.Sleep(frequency)
