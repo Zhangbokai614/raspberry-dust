@@ -20,7 +20,7 @@ var (
 	//sensor config
 	config = &dust_sensor.Config{
 		PortName:        "/dev/serial0",
-		BaudRate:        10000, // 9600
+		BaudRate:        9600,
 		DataBits:        8,
 		StopBits:        1,
 		MinimumReadSize: 8,
